@@ -1,0 +1,112 @@
+name: Build and release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  android:
+    name: Android app
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: android
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Set up signing key
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          if [ -z "$KEYSTORE_BASE64" ]; then
+            echo "::error::The ANDROID_KEYSTORE_BASE64 secret is missing, so the APK can't be signed."
+            exit 1
+          fi
+          echo "$KEYSTORE_BASE64" | base64 -d > deckr-release.jks
+          {
+            echo "storeFile=deckr-release.jks"
+            echo "storePassword=$KEYSTORE_PASSWORD"
+            echo "keyAlias=$KEY_ALIAS"
+            echo "keyPassword=$KEY_PASSWORD"
+          } > keystore.properties
+
+      - name: Build
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          [[ "$GITHUB_REF_TYPE" == "tag" ]] || VERSION="0.0.0-dev"
+          chmod +x gradlew
+          ./gradlew assembleRelease --no-daemon -PdeckrVersion="$VERSION" -PdeckrVersionCode="${{ github.run_number }}"
+          cp app/build/outputs/apk/release/app-release.apk ../Deckr.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android
+          path: Deckr.apk
+
+  desktop:
+    name: Windows app
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: desktop
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: desktop/package-lock.json
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: desktop/src-tauri
+
+      - name: Build
+        shell: bash
+        run: |
+          npm ci
+          npx tauri build
+          cp src-tauri/target/release/bundle/nsis/*-setup.exe ../Deckr-Setup.exe
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: desktop
+          path: Deckr-Setup.exe
+
+  release:
+    name: Publish release
+    needs: [android, desktop]
+    if: github.ref_type == 'tag'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          merge-multiple: true
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          name: Deckr ${{ github.ref_name }}
+          generate_release_notes: true
+          body: |
+            **PC:** run `Deckr-Setup.exe`. **Phone:** install `Deckr.apk`.
+            Gamepad mode needs the free [ViGEmBus](https://github.com/nefarius/ViGEmBus/releases/latest) driver.
+          files: |
+            Deckr-Setup.exe
+            Deckr.apk

@@ -1,0 +1,21 @@
+# Built apps (CI builds these for releases)
+/Deckr.apk
+/Deckr-Setup.exe
+
+# Android
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
+android/.idea/
+*.iml
+
+# Signing (never commit)
+*.jks
+*.keystore
+keystore.properties
+
+# Desktop
+desktop/node_modules/
+desktop/src-tauri/target/
+desktop/src-tauri/gen/

@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Deckr</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body data-stage="starting">
+  <header class="titlebar" data-tauri-drag-region>
+    <div class="brand">
+      <svg class="logo" viewBox="0 0 108 108" aria-hidden="true">
+        <g transform="translate(54,56) scale(1.25) translate(-54,-58)">
+          <path fill="var(--accent)" d="M38,40H70C79,40 84,46 86,55L89,68C90.5,74 86,78 81,76C78,75 76,72 73,68L70,64H38L35,68C32,72 30,75 27,76C22,78 17.5,74 19,68L22,55C24,46 29,40 38,40Z"/>
+          <path fill="var(--bg)" d="M31.5,50.5h13v3h-13zM36.5,45.5h3v13h-3z"/>
+          <circle cx="70" cy="46.4" r="2.4" fill="var(--bg)"/><circle cx="75.6" cy="52" r="2.4" fill="var(--bg)"/>
+          <circle cx="64.4" cy="52" r="2.4" fill="var(--bg)"/><circle cx="70" cy="57.6" r="2.4" fill="var(--bg)"/>
+        </g>
+      </svg>
+      <span class="name">Deckr</span>
+      <span class="version" id="version"></span>
+    </div>
+    <div class="controls">
+      <button type="button" class="ctl" id="minimize" aria-label="Minimize" title="Minimize">
+        <svg viewBox="0 0 10 10" aria-hidden="true"><path d="M0 5h10" /></svg>
+      </button>
+      <button type="button" class="ctl close" id="close" aria-label="Close to tray" title="Close to tray. Deckr keeps running.">
+        <svg viewBox="0 0 10 10" aria-hidden="true"><path d="M0 0l10 10M10 0L0 10" /></svg>
+      </button>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div class="stage" aria-hidden="true">
+        <svg viewBox="0 0 360 128">
+          <defs>
+            <linearGradient id="fadeGrad" x1="0" x2="1">
+              <stop offset="0" stop-color="#fff" />
+              <stop offset="1" stop-color="#fff" stop-opacity="0.08" />
+            </linearGradient>
+            <mask id="fade" maskUnits="userSpaceOnUse">
+              <rect x="120" y="36" width="160" height="28" fill="url(#fadeGrad)" />
+            </mask>
+          </defs>
+          <g class="pc">
+            <rect class="screen" x="40" y="28" width="72" height="44" rx="4" />
+            <rect class="frame" x="34" y="22" width="84" height="56" rx="8" />
+            <path class="frame" d="M76 78v14M60 94h32" />
+          </g>
+          <path class="track" d="M130 50H268" />
+          <path class="flow" d="M130 50H268" mask="url(#fade)" />
+          <path class="glint" d="M268 50H130" />
+          <path class="cut" d="M196 41l-8 18M207 41l-8 18" />
+          <g class="phone">
+            <rect class="frame" x="282" y="16" width="40" height="72" rx="9" />
+            <path class="frame" d="M297 80h10" />
+          </g>
+          <text class="label" id="pcLabel" x="76" y="120" text-anchor="middle">This PC</text>
+          <text class="label" id="phoneLabel" x="302" y="120" text-anchor="middle">Your phone</text>
+        </svg>
+      </div>
+      <h1 id="title">Starting Bluetooth…</h1>
+      <p id="subtitle">This only takes a moment.</p>
+
+      <div id="ask" class="ask">
+        <div class="ask-inner">
+          <div class="ask-card">
+            <b id="askTitle">A phone wants to connect</b>
+            <p>It will be able to use this PC's mouse, keyboard and gamepad. Deckr remembers your answer.</p>
+            <div class="actions">
+              <button type="button" class="btn ghost" data-action="deny">Not now</button>
+              <button type="button" class="btn" data-action="allow">Allow</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="group">
+      <h2>Phones</h2>
+      <div id="phones" class="list">
+        <p class="empty" id="phonesEmpty">No phones yet. The first time one connects, Deckr asks you here.</p>
+      </div>
+    </section>
+
+    <section class="group">
+      <h2>Settings</h2>
+      <div class="list">
+        <label class="row">
+          <span class="text">
+            <b>Start with Windows</b>
+            <small>Deckr waits in the tray, ready when you pick up your phone.</small>
+          </span>
+          <input type="checkbox" class="switch" id="autostart" />
+        </label>
+        <label class="row">
+          <span class="text">
+            <b>Ask before a new phone connects</b>
+            <small id="approvalHint">Phones you've allowed before connect straight away.</small>
+          </span>
+          <input type="checkbox" class="switch" id="approval" />
+        </label>
+        <label class="row">
+          <span class="text">
+            <b>Smooth pointer</b>
+            <small>Glides the cursor between Bluetooth updates. Off gives the lowest delay.</small>
+          </span>
+          <input type="checkbox" class="switch" id="smooth" />
+        </label>
+        <div class="row">
+          <span class="text">
+            <b>Gamepad type</b>
+            <small>Xbox 360 works with the most PC games.</small>
+          </span>
+          <div class="segmented" role="radiogroup" aria-label="Gamepad type">
+            <span class="thumb"></span>
+            <button type="button" role="radio" data-controller="ds4">DualShock 4</button>
+            <button type="button" role="radio" data-controller="xbox">Xbox 360</button>
+          </div>
+        </div>
+        <div id="driver" class="collapse">
+          <div class="collapse-inner">
+            <div class="row warn">
+              <span class="text">
+                <b id="driverTitle">Gamepad driver needed</b>
+                <small id="driverText">Gamepad mode needs the free ViGEmBus driver. Mouse and keyboard work without it.</small>
+              </span>
+              <span class="actions">
+                <button type="button" class="btn ghost small" data-action="retry-pad">Check again</button>
+                <button type="button" class="btn small" data-action="driver">Get driver</button>
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <details class="group log">
+      <summary>
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M6 4l4 4-4 4" /></svg>
+        Activity
+      </summary>
+      <ol id="log"></ol>
+    </details>
+  </main>
+
+
+  <script src="app.js"></script>
+</body>
+</html>
