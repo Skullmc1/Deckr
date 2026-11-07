@@ -38,7 +38,28 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import android.widget.Toast
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.rounded._3dRotation
+import androidx.compose.material.icons.rounded.Tune
+import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.window.Dialog
+import androidx.lifecycle.compose.LifecycleResumeEffect
 import app.deckr.DeckrViewModel
+import app.deckr.GyroAim
+import kotlin.math.roundToInt
 import app.deckr.Mode
 import app.deckr.ble.PadState
 import androidx.compose.runtime.rememberCoroutineScope
@@ -56,6 +77,15 @@ import kotlin.math.min
 fun GamepadScreen(vm: DeckrViewModel) {
     UnbufferedTouch()
     BackHandler { vm.setMode(Mode.Touchpad) }
+
+    // Gyro aim runs only while this screen is showing and the app is in front.
+    val context = LocalContext.current
+    val gyro = remember { GyroAim(context, vm) }
+    LifecycleResumeEffect(vm.gyroOn) {
+        if (vm.gyroOn) gyro.start()
+        onPauseOrDispose { gyro.stop() }
+    }
+    var gyroSettings by remember { mutableStateOf(false) }
 
     BoxWithConstraints(
         Modifier
@@ -111,9 +141,114 @@ fun GamepadScreen(vm: DeckrViewModel) {
         }
         PsButton(Modifier.at(0.5f, 0.42f, small * 1.2f).size(small * 1.2f)) { vm.padButton(PadState.PS, it) }
 
-        // Back to touchpad
-        Box(Modifier.at(0.5f, 0.92f, 44.dp).size(44.dp), contentAlignment = Alignment.Center) {
+        // Bottom row: back to touchpad, gyro aim on/off, gyro settings
+        Box(Modifier.at(0.42f, 0.92f, 44.dp).size(44.dp), contentAlignment = Alignment.Center) {
             RoundIcon(Icons.Rounded.TouchApp, "Touchpad mode") { vm.setMode(Mode.Touchpad) }
+        }
+        Box(Modifier.at(0.5f, 0.92f, 44.dp).size(44.dp), contentAlignment = Alignment.Center) {
+            RoundIcon(Icons.Rounded._3dRotation, if (vm.gyroOn) "Turn off gyro aim" else "Turn on gyro aim", active = vm.gyroOn) {
+                if (gyro.available) vm.changeGyro(!vm.gyroOn)
+                else Toast.makeText(context, "This phone has no gyroscope.", Toast.LENGTH_SHORT).show()
+            }
+        }
+        Box(Modifier.at(0.58f, 0.92f, 44.dp).size(44.dp), contentAlignment = Alignment.Center) {
+            RoundIcon(Icons.Rounded.Tune, "Gyro aim settings") { gyroSettings = true }
+        }
+    }
+
+    if (gyroSettings) GyroSettings(vm) { gyroSettings = false }
+}
+
+// ============================================================================ gyro settings
+
+@Composable
+private fun GyroSettings(vm: DeckrViewModel, onClose: () -> Unit) {
+    Dialog(onDismissRequest = onClose) {
+        Column(
+            Modifier
+                .widthIn(max = 460.dp)
+                .clip(RoundedCornerShape(20.dp))
+                .background(DeckrColors.Surface)
+                .border(1.dp, DeckrColors.Outline, RoundedCornerShape(20.dp))
+                .verticalScroll(rememberScrollState())
+                .padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("Gyro aim", color = DeckrColors.Text, fontSize = 20.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+                AccentSwitch(vm.gyroOn, vm::changeGyro)
+            }
+            Text(
+                "Turn and tilt the phone to aim, like motion aiming on a console controller.",
+                color = DeckrColors.TextDim, fontSize = 13.sp,
+            )
+
+            Setting("Aim with", if (vm.gyroToStick) "For games that only read the controller." else "Most precise. Works in most PC shooters.") {
+                Choice(listOf("Mouse", "Right stick"), if (vm.gyroToStick) 1 else 0) { vm.changeGyroToStick(it == 1) }
+            }
+            Setting("Active", if (vm.gyroOnlyWithL2) "Aims only while you hold L2, like aiming down sights." else "Aims whenever gyro is on.") {
+                Choice(listOf("Always", "Holding L2"), if (vm.gyroOnlyWithL2) 1 else 0) { vm.changeGyroOnlyWithL2(it == 1) }
+            }
+            Column {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("Sensitivity", color = DeckrColors.Text, fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f))
+                    Text("%.1fx".format(vm.gyroSensitivity), color = DeckrColors.TextDim, fontSize = 13.sp)
+                }
+                Slider(
+                    value = vm.gyroSensitivity,
+                    onValueChange = { vm.changeGyroSensitivity((it * 10).roundToInt() / 10f) },
+                    valueRange = 0.3f..4f,
+                    colors = SliderDefaults.colors(thumbColor = DeckrColors.Accent, activeTrackColor = DeckrColors.Accent),
+                )
+            }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("Invert up and down", color = DeckrColors.Text, fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f))
+                AccentSwitch(vm.gyroInvertY, vm::changeGyroInvertY)
+            }
+        }
+    }
+}
+
+@Composable
+private fun AccentSwitch(checked: Boolean, onChange: (Boolean) -> Unit) {
+    Switch(
+        checked = checked,
+        onCheckedChange = onChange,
+        colors = SwitchDefaults.colors(checkedTrackColor = DeckrColors.Accent, checkedThumbColor = DeckrColors.Bg),
+    )
+}
+
+@Composable
+private fun Setting(title: String, hint: String, control: @Composable () -> Unit) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(title, color = DeckrColors.Text, fontWeight = FontWeight.Medium)
+        control()
+        Text(hint, color = DeckrColors.TextDim, fontSize = 12.sp)
+    }
+}
+
+@Composable
+private fun Choice(options: List<String>, selected: Int, onSelect: (Int) -> Unit) {
+    val shape = RoundedCornerShape(12.dp)
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .clip(shape)
+            .background(DeckrColors.Bg)
+            .border(1.dp, DeckrColors.Outline, shape)
+            .padding(3.dp),
+    ) {
+        options.forEachIndexed { i, label ->
+            val on = i == selected
+            Box(
+                Modifier
+                    .weight(1f)
+                    .clip(RoundedCornerShape(9.dp))
+                    .background(if (on) DeckrColors.SurfaceHigh else Color.Transparent)
+                    .clickable { onSelect(i) }
+                    .padding(vertical = 9.dp),
+                contentAlignment = Alignment.Center,
+            ) { Text(label, color = if (on) DeckrColors.Text else DeckrColors.TextDim, fontSize = 13.sp) }
         }
     }
 }

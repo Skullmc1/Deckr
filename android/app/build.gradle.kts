@@ -16,7 +16,7 @@ android {
         targetSdk = 35
         // CI passes the release tag and run number; local builds use these defaults.
         versionCode = (findProperty("deckrVersionCode") as String?)?.toIntOrNull() ?: 1
-        versionName = (findProperty("deckrVersion") as String?) ?: "0.3.3"
+        versionName = (findProperty("deckrVersion") as String?) ?: "0.4.0"
     }
 
     val keystoreFile = rootProject.file("keystore.properties")

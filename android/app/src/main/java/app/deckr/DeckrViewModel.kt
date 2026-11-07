@@ -15,6 +15,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import java.util.UUID
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 
 enum class Mode { Touchpad, Gamepad }
 
@@ -44,8 +47,34 @@ class DeckrViewModel(app: Application) : AndroidViewModel(app) {
         get() = prefs.getFloat("sensitivity", 1.6f)
         set(value) = prefs.edit().putFloat("sensitivity", value).apply()
 
+    // ---- gyro aim (settings saved; read from the sensor thread) ----
+    var gyroOn by mutableStateOf(prefs.getBoolean("gyroOn", false))
+        private set
+    /** Aim with the right stick instead of the mouse. */
+    var gyroToStick by mutableStateOf(prefs.getBoolean("gyroToStick", false))
+        private set
+    /** Only aim while L2 is held (aiming down sights), instead of always. */
+    var gyroOnlyWithL2 by mutableStateOf(prefs.getBoolean("gyroOnlyWithL2", false))
+        private set
+    var gyroSensitivity by mutableStateOf(prefs.getFloat("gyroSensitivity", 1f))
+        private set
+    var gyroInvertY by mutableStateOf(prefs.getBoolean("gyroInvertY", false))
+        private set
+
+    fun changeGyro(on: Boolean) { gyroOn = on; prefs.edit().putBoolean("gyroOn", on).apply() }
+    fun changeGyroToStick(v: Boolean) { gyroToStick = v; setGyroStick(0f, 0f); prefs.edit().putBoolean("gyroToStick", v).apply() }
+    fun changeGyroOnlyWithL2(v: Boolean) { gyroOnlyWithL2 = v; prefs.edit().putBoolean("gyroOnlyWithL2", v).apply() }
+    fun changeGyroSensitivity(v: Float) { gyroSensitivity = v; prefs.edit().putFloat("gyroSensitivity", v).apply() }
+    fun changeGyroInvertY(v: Boolean) { gyroInvertY = v; prefs.edit().putBoolean("gyroInvertY", v).apply() }
+
+    fun gyroActive(): Boolean = gyroOn && (!gyroOnlyWithL2 || pad.l2 > 0.3f)
+
     // ---- gamepad state ----
     private var pad = PadState()
+    private var touchRx = 0f
+    private var touchRy = 0f
+    private var gyroRx = 0f
+    private var gyroRy = 0f
 
     private var pending: Pair<String, String>? = null
 
@@ -87,7 +116,15 @@ class DeckrViewModel(app: Application) : AndroidViewModel(app) {
     fun padButton(bit: Int, down: Boolean) = updatePad(pad.withButton(bit, down))
     fun padDpad(bit: Int, down: Boolean) = updatePad(pad.withDpad(bit, down))
     fun leftStick(x: Float, y: Float) = updatePad(pad.copy(lx = x, ly = y))
-    fun rightStick(x: Float, y: Float) = updatePad(pad.copy(rx = x, ry = y))
+    fun rightStick(x: Float, y: Float) { touchRx = x; touchRy = y; pushRightStick() }
+
+    /** Right-stick contribution from gyro aim; added to the touch stick. */
+    fun setGyroStick(x: Float, y: Float) { gyroRx = x; gyroRy = y; pushRightStick() }
+
+    @Synchronized
+    private fun pushRightStick() = updatePad(
+        pad.copy(rx = (touchRx + gyroRx).coerceIn(-1f, 1f), ry = (touchRy + gyroRy).coerceIn(-1f, 1f)),
+    )
     fun l2(value: Float) = updatePad(pad.copy(l2 = value))
     fun r2(value: Float) = updatePad(pad.copy(r2 = value))
 
@@ -98,7 +135,10 @@ class DeckrViewModel(app: Application) : AndroidViewModel(app) {
         link.pad(next)
     }
 
-    fun releasePad() = updatePad(PadState())
+    fun releasePad() {
+        touchRx = 0f; touchRy = 0f; gyroRx = 0f; gyroRy = 0f
+        updatePad(PadState())
+    }
 
     override fun onCleared() {
         releasePad()
