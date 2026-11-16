@@ -5,8 +5,31 @@ Use your Android phone as a touchpad, keyboard and gamepad for your Windows PC, 
 - **Touchpad:** tap to click, two fingers to scroll or right-click, hold and drag to select.
 - **Keyboard:** type on your phone and it appears on the PC as you type.
 - **Gamepad:** two touch joysticks and PlayStation-style buttons, seen by Windows as a DualShock 4 or Xbox 360 controller.
+- **Gyro aim:** turn and tilt the phone to aim in shooters, as mouse or right-stick input.
 
 No pairing in Windows settings needed. The first time a phone connects, Deckr on the PC asks you to allow it.
+
+## Screenshots
+
+<p align="center">
+  <img src="docs/screenshots/phone-gamepad.png" alt="Gamepad mode in landscape: shoulder buttons, D-pad, two joysticks, face buttons, and gyro aim switched on" width="800">
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/phone-connect.png" alt="Connect screen looking for the PC" width="240">
+  &nbsp;
+  <img src="docs/screenshots/phone-touchpad.png" alt="Touchpad mode with the tool strip at the bottom" width="240">
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/phone-gyro.png" alt="Gyro aim settings: aim with mouse or right stick, always or while holding L2, sensitivity" width="800">
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/desktop-ask.png" alt="Deckr for Windows asking whether to let a new phone connect" width="380">
+  &nbsp;
+  <img src="docs/screenshots/desktop-on.png" alt="Deckr for Windows with a phone connected" width="380">
+</p>
 
 ## Install
 

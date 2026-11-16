@@ -51,7 +51,9 @@ class GyroAim(private val context: Context, private val vm: DeckrViewModel) : Se
         thread = t
         val handler = Handler(t.looper)
         lastNs = 0L
-        sm.registerListener(this, gyro, SensorManager.SENSOR_DELAY_FASTEST, handler)
+        // 200 Hz: the fastest rate allowed without the HIGH_SAMPLING_RATE_SENSORS permission
+        // (debug builds crash when asking for more; release builds are silently capped here anyway).
+        sm.registerListener(this, gyro, GYRO_PERIOD_US, handler)
         gravitySensor?.let { sm.registerListener(this, it, SensorManager.SENSOR_DELAY_GAME, handler) }
     }
 
@@ -153,6 +155,7 @@ class GyroAim(private val context: Context, private val vm: DeckrViewModel) : Se
 
     private companion object {
         const val RAD_TO_DEG = 57.29578f
+        const val GYRO_PERIOD_US = 5_000
         const val TIGHTEN_DEG_S = 2.5f
         /** Mouse pixels per degree of turn at sensitivity 1. */
         const val PIXELS_PER_DEGREE = 14f
