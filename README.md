@@ -60,6 +60,6 @@ cd android && ./gradlew assembleRelease
 
 ## Releases
 
-Pushing a tag like `v0.4.0` runs `.github/workflows/release.yml`, which builds both apps and
+Pushing a tag like `v0.4.1` runs `.github/workflows/release.yml`, which builds both apps and
 publishes them as a GitHub release. The APK is signed with the key stored in these repository secrets:
 `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD`.
